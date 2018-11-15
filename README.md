@@ -1,6 +1,23 @@
 # ksm-test
 native programs for ksm testing
 
+## page allocation
+
+use `malloc` to allocate memory. It's difficult to allocate page-alligned memory.
+So, just allocate a large enough memory is OK.
+
+use `mlockall` to prevent page from swapping. (Did I enabled swap in the kernel ? Anyway.)
+
+
+## mem test programs.
+
+### test_one : `test_one.c`
+one program, allocated many pages.
+Then all the same page should be merged very soon.
+**Expect to see**
+* pages sharing go up.
+* examine the merge process with gdb.
+
 
 ## make
 
