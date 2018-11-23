@@ -6,8 +6,24 @@ native programs for ksm testing
 use `malloc` to allocate memory. It's difficult to allocate page-alligned memory.
 So, just allocate a large enough memory is OK.
 
+Note: small alloc will be handeld by `sbrk`, big alloc will be handeld by `mmap`
+
 use `mlockall` to prevent page from swapping. (Did I enabled swap in the kernel ? Anyway.)
 
+
+## design
+
+a program that can 
+* do simple allcate, free, write do a page, read a page.
+* do it either in a random way or mechanically
+  * can simulate a real app and do simple test.
+
+* basic memory operation
+  * allocate
+  * free
+  * write
+  * read
+see details in `bk.h`
 
 ## mem test programs.
 
