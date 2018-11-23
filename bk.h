@@ -26,7 +26,7 @@ int alloc_pages(struct BookKeeper *bk, unsigned num, char content);
 unsigned nr_allocated_pages(struct BookKeeper *bk);
 
 
-#define ROUND_UP(num, mod) (((num) + (mod) - 1) / (mod) * (mod))
+#define ROUND_UP(num, mod) ((((unsigned)num) + (mod) - 1) / (mod) * (mod))
 
 /*
  * return the real number of pages allocated
