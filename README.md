@@ -11,7 +11,7 @@ Note: small alloc will be handeld by `sbrk`, big alloc will be handeld by `mmap`
 use `mlockall` to prevent page from swapping. (Did I enabled swap in the kernel ? Anyway.)
 
 
-## design
+## mem test programs.
 
 a program that can 
 * do simple allcate, free, write do a page, read a page.
@@ -25,7 +25,7 @@ a program that can
   * read
 see details in `bk.h`
 
-## mem test programs.
+**.. Damn, make things unnecessarily complex**
 
 ### test_one : `test_one.c`
 one program, allocated many pages.
