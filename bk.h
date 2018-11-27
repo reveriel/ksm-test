@@ -18,7 +18,8 @@ extern unsigned N_blob;
  * return -1 if failed.
  * return 0 if success
  * */
-int alloc_pages(struct BookKeeper *bk, unsigned num, char content);
+int alloc_pages_write(struct BookKeeper *bk, unsigned num, char content);
+
 
 /* return the total number of allocated pages.
  * its is the sum of 'num' of all alloc_page() invocation

@@ -25,11 +25,11 @@ void simu1()
 	struct BookKeeper *bk;
 	bk = BookKeeper_init();
 
-	alloc_pages(bk, 50, 1);
+	alloc_pages_write(bk, 50, 1);
 
 	// ramdom free some pages 
 	free_pages(bk, 50);
-	alloc_pages(bk, 50, 1);
+	alloc_pages_write(bk, 50, 1);
 
 	sleep(10);
 	free_all_pages(bk);
@@ -52,7 +52,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	simu1();
+	if (!op_random)
+		simu1();
 
 	return 0;
 

@@ -13,7 +13,7 @@ use `mlockall` to prevent page from swapping. (Did I enabled swap in the kernel 
 
 ## mem test programs.
 
-a program that can 
+a program that can
 * do simple allcate, free, write do a page, read a page.
 * do it either in a random way or mechanically
   * can simulate a real app and do simple test.

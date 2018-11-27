@@ -27,6 +27,31 @@
 		return; \
 	} } while (0)
 
+// take 'bk' as an array of char.
+// compare with 'ans' array of length 'len'
+// return 0 if equal
+// in 'ans', is an element is '(char)-1', it can match anything
+int cmp_bk_array(struct BookKeeper *bk, char *ans, unsigned len) {
+	if (!bk)
+		return 1;
+	unsigned size = bk->allocated_size;
+	if (size != len)
+		return 1;
+
+	struct MList *ml = bk->head;
+	char *p = ml->p;
+	for (unsigned i = 0; i < size; i++) {
+		if (*p != ans[i] && ans[i] != (char)-1)
+			return 1;
+		p += PAGESIZE;
+		if (p == ml->p + PAGESIZE * N_blob) {
+			ml = ml->next;
+			p = ml->p;
+		}
+	}
+	return 0;
+}
+
 void MList_print(struct MList *ml) {
 	printf(" [");
 	char *p = ml->p;
@@ -36,12 +61,14 @@ void MList_print(struct MList *ml) {
 	}
 	printf(" ]\n");
 }
+
 void MList_init_test() {
 	printf("Test: %s\n", __func__);
 	struct MList *ml  = MList_init();
 	MList_print(ml);
 	MList_free(ml);
 }
+
 
 void BK_init_test() {
 	printf("Test: %s\n", __func__);
@@ -61,6 +88,24 @@ void BookKeeper_print(struct BookKeeper *bk) {
 	}
 }
 
+// consider size
+void BookKeeper_prints(struct BookKeeper *bk) {
+	unsigned size = bk->allocated_size;
+	struct MList *ml = bk->head;
+	while (size >= N_blob) {
+		size -= N_blob;
+		MList_print(ml);
+		ml = ml->next;
+	}
+	printf(" [");
+	char *p = ml->p;
+	while (size--) {
+		printf("%4x ", *p);
+		p += PAGESIZE;
+	}
+	printf(" ]\n");
+}
+
 void bk_add_ml_test() {
 	printf("Test: %s\n", __func__);
 	struct BookKeeper *bk = BookKeeper_init();
@@ -70,7 +115,6 @@ void bk_add_ml_test() {
 	EXPECT_PTR(bk->tail, ml);
 	EXPECT_PTR(ml->next, NULL);
 	BookKeeper_print(bk);
-	
 	BookKeeper_free(bk);
 	MList_free(ml);
 }
@@ -90,15 +134,34 @@ void bk_add_ml_test2() {
 	EXPECT_PTR(bk->head->next->next, ml3);
 	EXPECT_PTR(bk->tail, ml3);
 	EXPECT_PTR(ml3->next, NULL);
-	
+
 	BookKeeper_free(bk);
 	MList_free(ml1);
 	MList_free(ml2);
 }
 
+void alloc_pages_test() {
+	printf("Test: %s\n", __func__);
+	struct BookKeeper *bk = BookKeeper_init();
+	alloc_pages(bk, 4);
+	char ans[] = {-1,-1,-1,-1};
+	EXPECT_INT(cmp_bk_array(bk, ans, 4), 0);
+}
+void alloc_pages_test2() {
+	printf("Test: %s\n", __func__);
+	struct BookKeeper *bk = BookKeeper_init();
+	alloc_pages(bk, N_blob + 4);
+	char *ans = (char *)malloc(N_blob + 4);
+	memset(ans, -1, N_blob + 4);
+	EXPECT_INT(cmp_bk_array(bk, ans, N_blob + 4), 0);
+	free(ans);
+}
+
 void write_one_page_wp_test() {
 	printf("Test: %s\n", __func__);
 	struct BookKeeper *bk = BookKeeper_init();
+	alloc_pages(bk, N_blob);
+
 	struct MList *ml1  = MList_init();
 	bk_add_ml(bk, ml1);
 	BookKeeper_print(bk);
@@ -120,7 +183,7 @@ void write_one_page_wp_test() {
 	BookKeeper_print(bk);
 	EXPECT_PTR(wp.cur_ml, ml1);
 	EXPECT_INT(wp.cur_page, 2);
-	
+
 	BookKeeper_free(bk);
 	MList_free(ml1);
 }
@@ -143,7 +206,7 @@ void write_one_page_wp_test2() {
 	EXPECT_INT(wp.cur_page, 1);
 	printf("after\n");
 	BookKeeper_print(bk);
-	
+
 	BookKeeper_free(bk);
 	MList_free(ml1);
 	MList_free(ml2);
@@ -164,16 +227,16 @@ void write_page_wp_test() {
 	write_page_wp(bk, &wp, N_blob * 3, 4);
 	printf("after\n");
 	BookKeeper_print(bk);
-	
+
 	BookKeeper_free(bk);
 	MList_free(ml1);
 	MList_free(ml2);
 }
 
-void alloc_pages_test() {
+void alloc_pages_write_test() {
 	printf("Test: %s\n", __func__);
 	struct BookKeeper *bk = BookKeeper_init();
-	alloc_pages(bk, 2, 5);
+	alloc_pages_write(bk, 2, 5);
 	printf("allocated\n");
 	BookKeeper_print(bk);
 
@@ -181,12 +244,23 @@ void alloc_pages_test() {
 	BookKeeper_free(bk);
 }
 
-void alloc_pages_test2() {
+void alloc_pages_write_test2() {
 	printf("Test: %s\n", __func__);
 	struct BookKeeper *bk = BookKeeper_init();
-	alloc_pages(bk, N_blob + 2, 6);
+	alloc_pages_write(bk, N_blob + 2, 6);
 	printf("allocated\n");
 	BookKeeper_print(bk);
+
+	MList_free(bk->head);
+	BookKeeper_free(bk);
+}
+void alloc_pages_write_test3() {
+	printf("Test: %s\n", __func__);
+	struct BookKeeper *bk = BookKeeper_init();
+	alloc_pages_write(bk, 2, 7);
+	alloc_pages_write(bk, N_blob, 8);
+	printf("allocated\n");
+	BookKeeper_prints(bk);
 
 	MList_free(bk->head);
 	BookKeeper_free(bk);
@@ -195,7 +269,7 @@ void alloc_pages_test2() {
 void write_pages_test() {
 	printf("Test: %s\n", __func__);
 	struct BookKeeper *bk = BookKeeper_init();
-	alloc_pages(bk, N_blob + 2, 0);
+	alloc_pages_write(bk, N_blob + 2, 0);
 	/* write_pages(bk, N_blob + 3); */
 }
 
@@ -205,11 +279,14 @@ int main() {
 	BK_init_test();
 	bk_add_ml_test();
 	bk_add_ml_test2();
-	write_one_page_wp_test();
-	write_one_page_wp_test2();
-	write_page_wp_test();
 	alloc_pages_test();
 	alloc_pages_test2();
-	write_pages_test();
+	/* write_one_page_wp_test(); */
+	/* write_one_page_wp_test2(); */
+	/* write_page_wp_test(); */
+	/* alloc_pages_write_test(); */
+	/* alloc_pages_write_test2(); */
+	/* alloc_pages_write_test3(); */
+	/* write_pages_test(); */
 }
 

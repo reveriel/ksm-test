@@ -13,34 +13,34 @@
  *
  * alloc and free pages to simulate real situation
  * a test program for ksm
- * 
+ *
  * because we use malloc to allocate memory,
  * this is not pages aligned
  * and allocated memory has block_header stuff that saves meta data.
  * we have to use bigger granularity..
- * 
- * malloc aggregate many small malloc() into big brk() 
+ *
+ * malloc aggregate many small malloc() into big brk()
  * (or mmap() for larger request)
  * requests. to improve performance.
  * when free, pages are also not returned immediately
  *
  * see man mallopt(3)
- * 
+ *
  * allocation larger than M_MMAP_THRESHOLD(128*1024, dynamic)
  * are served by mmap
  *
- */ 
+ */
 
 #define PAGESIZE 4096
 unsigned N_blob = 8;
 
-/* this is a node that points to a memory blob 
+/* this is a node that points to a memory blob
  * which is of size 'N_blob * PAGESIZE'
  */
 struct MList {
 	// the pointer used to write data
 	// this one is page aligned
-	char *p; 
+	char *p;
 	// this pointer is returned from malloc
 	// used to free memory
 	char *p_malloc;
@@ -67,10 +67,9 @@ struct BookKeeper {
 	// write cursor,
 	// record the write position
 	// when write to Memory list, do it in loop
-	// after the first bk_add_ml, cur_ml will not be null
-	/* struct MList *cur_ml; */
-	// assert(cur_page >= 0 && cur_page < N_blob)
-	/* unsigned cur_page; */
+	// used only in write_pages()
+	// init when first ml added
+	struct WriteP wp;
 };
 
 
@@ -110,6 +109,8 @@ static void bk_add_ml(struct BookKeeper *bk, struct MList *ml) {
 	if (bk->head == NULL) {
 		bk->head = ml;
 		bk->tail = ml;
+		bk->wp.cur_ml = ml;
+		bk->wp.cur_page = 0;
 		return;
 	}
 	bk->tail->next = ml;
@@ -131,10 +132,25 @@ static void BookKeeper_free(struct BookKeeper *bk) {
 	free(bk);
 }
 
+// move 'wp' to point to the next page.
+static void wrap_wp(struct BookKeeper *bk, struct WriteP *wp)
+{
+	wp->cur_page++;
+	// if at end
+	if (wp->cur_ml == bk->tail
+			&& wp->cur_page == bk->allocated_size % N_blob) {
+			wp->cur_ml = bk->head;
+			wp->cur_page = 0;
+	} else if (wp->cur_page == N_blob) {
+		wp->cur_ml = wp->cur_ml->next;
+		wp->cur_page = 0;
+	}
+}
 
 // write one page at wp,
 // move wp one page next, warp.
-// return how many pages has write.
+// @return how many pages has write.
+// note: bk's size and capacity!
 static int write_one_page_wp(struct BookKeeper *bk, struct WriteP *wp,
 		char content)
 {
@@ -142,20 +158,10 @@ static int write_one_page_wp(struct BookKeeper *bk, struct WriteP *wp,
 		return 0;
 	struct MList *ml = wp->cur_ml;
 	char *write_p = ml->p;
-	
+
 	write_p += wp->cur_page * PAGESIZE;
 	memset(write_p, content, PAGESIZE);
-	wp->cur_page++;
-
-	// wrap
-	if (wp->cur_page == N_blob) {
-		wp->cur_page = 0;
-		if (ml == bk->tail)
-			wp->cur_ml = bk->head;
-		else
-			wp->cur_ml = ml->next;
-			
-	}
+	wrap_wp(bk, wp);
 	return 1;
 }
 
@@ -165,25 +171,21 @@ static void write_page_wp(struct BookKeeper *bk, struct WriteP *wp, unsigned num
 	for (unsigned i = 0; i < num; i++) {
 		int n = write_one_page_wp(bk, wp, content);
 		if (n == 0) {
-			printf("write page error");
+			printf("write page error\n");
 			return;
 		}
 	}
 }
 
+// check if the wp is a valid wp.
+/* static int valid_wp(struct BookKeeper *bk, struct WriteP *wp); */
 
-/* then I realized.. my poor design */
-/* I will split the cursor out */
-int alloc_pages(struct BookKeeper *bk, unsigned num, char content)
+// only allocated
+int alloc_pages(struct BookKeeper *bk, unsigned num)
 {
 	int num_pages_new = bk->allocated_size + num - bk->allocated_size_real;
-
-	struct WriteP wp;
-	wp.cur_ml = bk->tail;
-	wp.cur_page = bk->allocated_size % N_blob;
-	
 	if (num_pages_new > 0) {
-		// need applocate
+		// need allocate
 		int num_ml_new = ROUND_UP(num_pages_new, N_blob) / N_blob;
 		for (int i = 0; i < num_ml_new; i++) {
 			struct MList *ml = MList_init();
@@ -193,14 +195,39 @@ int alloc_pages(struct BookKeeper *bk, unsigned num, char content)
 		}
 		bk->allocated_size_real += num_ml_new * N_blob;
 	}
-	if (wp.cur_ml == NULL) { 
+	bk->allocated_size += num;
+	return 0;
+}
+
+/* then I realized.. my poor design */
+/* I will split the cursor out */
+int alloc_pages_write(struct BookKeeper *bk, unsigned num, char content)
+{
+	int num_pages_new = bk->allocated_size + num - bk->allocated_size_real;
+
+	struct WriteP wp;
+	wp.cur_ml = bk->tail;
+	wp.cur_page = bk->allocated_size % N_blob;
+
+	if (num_pages_new > 0) {
+		// need allocate
+		int num_ml_new = ROUND_UP(num_pages_new, N_blob) / N_blob;
+		for (int i = 0; i < num_ml_new; i++) {
+			struct MList *ml = MList_init();
+			if (!ml)
+				return -1;
+			bk_add_ml(bk, ml);
+		}
+		bk->allocated_size_real += num_ml_new * N_blob;
+	}
+	if (wp.cur_ml == NULL) {
 		// the first time
 		wp.cur_ml = bk->head;
 	}
 
 	bk->allocated_size += num;
 	write_page_wp(bk, &wp, num, content);
-	
+
 	return 0;
 }
 
@@ -212,14 +239,13 @@ unsigned nr_allocated_pages(struct BookKeeper *bk)
 
 // continue from where left last time
 // if pages are freed, and the wp points to invalid ml, error.
-// TODO:  add a wp to bk. used for this function.
+//  add a wp to bk. used for this function.
+// note! size!
 void write_pages(struct BookKeeper *bk, unsigned num, char content)
 {
-	static struct WriteP wp = {.cur_ml = bk};
-	wp.cur_ml = bk->head;
-	wp.cur_page = 0;
-	write_page_wp(bk, &wp, num, content);
+	write_page_wp(bk, &bk->wp, num, content);
 }
+
 
 void write_random_pages(struct BookKeeper *bk, unsigned num, char content)
 {
