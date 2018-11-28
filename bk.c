@@ -165,9 +165,17 @@ static int write_one_page_wp(struct BookKeeper *bk, struct WriteP *wp,
 	return 1;
 }
 
-static void write_page_wp(struct BookKeeper *bk, struct WriteP *wp, unsigned num,
+// if wp->cur_ml is null, init to bk->head;
+static void write_pages_wp(struct BookKeeper *bk, struct WriteP *wp, unsigned num,
 		char content)
 {
+	if (!wp)
+		return;
+	if (wp->cur_ml == NULL) {
+		wp->cur_ml = bk->head;
+		wp->cur_page = 0;
+	}
+
 	for (unsigned i = 0; i < num; i++) {
 		int n = write_one_page_wp(bk, wp, content);
 		if (n == 0) {
@@ -199,34 +207,23 @@ int alloc_pages(struct BookKeeper *bk, unsigned num)
 	return 0;
 }
 
+void reset_write_pos(struct BookKeeper *bk)
+{
+	bk->wp.cur_ml = bk->head;
+	bk->wp.cur_page = 0;
+}
+
 /* then I realized.. my poor design */
 /* I will split the cursor out */
 int alloc_pages_write(struct BookKeeper *bk, unsigned num, char content)
 {
-	int num_pages_new = bk->allocated_size + num - bk->allocated_size_real;
-
 	struct WriteP wp;
-	wp.cur_ml = bk->tail;
+	// I should have used an empty node as a list head!
+	wp.cur_ml = bk->tail; // might be null
 	wp.cur_page = bk->allocated_size % N_blob;
 
-	if (num_pages_new > 0) {
-		// need allocate
-		int num_ml_new = ROUND_UP(num_pages_new, N_blob) / N_blob;
-		for (int i = 0; i < num_ml_new; i++) {
-			struct MList *ml = MList_init();
-			if (!ml)
-				return -1;
-			bk_add_ml(bk, ml);
-		}
-		bk->allocated_size_real += num_ml_new * N_blob;
-	}
-	if (wp.cur_ml == NULL) {
-		// the first time
-		wp.cur_ml = bk->head;
-	}
-
-	bk->allocated_size += num;
-	write_page_wp(bk, &wp, num, content);
+	alloc_pages(bk, num);
+	write_pages_wp(bk, &wp, num, content);
 
 	return 0;
 }
@@ -243,7 +240,7 @@ unsigned nr_allocated_pages(struct BookKeeper *bk)
 // note! size!
 void write_pages(struct BookKeeper *bk, unsigned num, char content)
 {
-	write_page_wp(bk, &bk->wp, num, content);
+	write_pages_wp(bk, &bk->wp, num, content);
 }
 
 
@@ -272,6 +269,7 @@ void free_all_pages(struct BookKeeper *bk)
 	BookKeeper_free(bk);
 }
 
+// FIXME, memory leak now
 void free_pages(struct BookKeeper *bk, unsigned num)
 {
 	/* struct MList *next = bk->head; */

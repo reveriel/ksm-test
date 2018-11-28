@@ -1,5 +1,5 @@
 
-CFLAGS = -Wall -Wextra
+CFLAGS = -Wall -Wextra -ggdb
 all: test_one bk_test
 
 test_one: bk.c bk.h test_one.c
