@@ -27,7 +27,6 @@ void simu1()
 
 	alloc_pages_write(bk, 50, 1);
 
-	// ramdom free some pages 
 	free_pages(bk, 50);
 	alloc_pages_write(bk, 50, 1);
 

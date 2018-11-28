@@ -32,7 +32,7 @@
  */
 
 #define PAGESIZE 4096
-unsigned N_blob = 8;
+unsigned const N_blob = 8;
 
 /* this is a node that points to a memory blob
  * which is of size 'N_blob * PAGESIZE'
@@ -228,11 +228,10 @@ int alloc_pages_write(struct BookKeeper *bk, unsigned num, char content)
 	return 0;
 }
 
-unsigned nr_allocated_pages(struct BookKeeper *bk)
+unsigned num_allocated_pages(struct BookKeeper *bk)
 {
 	return bk->allocated_size;
 }
-
 
 // continue from where left last time
 // if pages are freed, and the wp points to invalid ml, error.
@@ -242,7 +241,6 @@ void write_pages(struct BookKeeper *bk, unsigned num, char content)
 {
 	write_pages_wp(bk, &bk->wp, num, content);
 }
-
 
 void write_random_pages(struct BookKeeper *bk, unsigned num, char content)
 {
@@ -269,16 +267,58 @@ void free_all_pages(struct BookKeeper *bk)
 	BookKeeper_free(bk);
 }
 
-// FIXME, memory leak now
+// how many ml needs to be freed
+static unsigned num_ml_needs_free(struct BookKeeper *bk, unsigned num) {
+	// assume num >= size % N_blob
+	// so return value must > 0
+	unsigned size = bk->allocated_size;
+	return (num - size % N_blob) / N_blob + 1;
+}
+
+// free, start from tail.
+// I want double linked list !
+// Ok, fine. not a problem..
 void free_pages(struct BookKeeper *bk, unsigned num)
 {
-	/* struct MList *next = bk->head; */
-	/* while (next) { */
-	/* 	MList_free(next); */
-	/* 	next = next->next; */
-	/* } */
-	bk = bk;
-	num = num;
+	if (!bk)
+		return;
+	// no need to free
+	if (num < bk->allocated_size % N_blob) {
+		bk->allocated_size -= num;
+		return;
+	}
+
+	// how many ml needs to be freed
+	unsigned num_free = num_ml_needs_free(bk, num);
+	unsigned num_total = bk->allocated_size_real / N_blob;
+	if (num_free > num_total)
+		num_free = num_total;
+	/* if total = 1, free = 1 */
+	/* if total = 2, free = 1 */
+
+	struct MList *ml = bk->head;
+	if (num_total == num_free) {
+		// that means we will free all mls
+		bk->tail = NULL;
+		bk->head = NULL;
+	} else {
+		// before the first to be freed, we need to reset tail pointer.
+		for (int i = 0; i < (int)(num_total - num_free) - 1; i++) {
+			ml = ml->next;
+		}
+		bk->tail = ml;
+		ml = ml->next;
+		bk->tail->next = NULL;
+	}
+
+	for (unsigned i = 0; i < num_free; i++) {
+		struct MList *tmp = ml;
+		MList_free(tmp);
+		ml = ml->next;
+	}
+
+	bk->allocated_size -= num;
+	bk->allocated_size_real -= num_free * N_blob;
 }
 
 void print_pages(struct BookKeeper *bk)

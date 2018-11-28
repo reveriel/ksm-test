@@ -44,7 +44,7 @@ int cmp_bk_array(struct BookKeeper *bk, char *ans, unsigned len) {
 		if (*p != ans[i] && ans[i] != (char)-1)
 			return 1;
 		p += PAGESIZE;
-		if (p == ml->p + PAGESIZE * N_blob 
+		if (p == ml->p + PAGESIZE * N_blob
 				&& i != size - 1) { // bugfix
 			ml = ml->next;
 			p = ml->p;
@@ -149,14 +149,18 @@ void alloc_pages_test() {
 	alloc_pages(bk, 4);
 	char ans[] = {-1,-1,-1,-1};
 	EXPECT_INT(cmp_bk_array(bk, ans, 4), 0);
+	free_all_pages(bk);
 }
+
 void alloc_pages_test2() {
 	printf("Test: %s\n", __func__);
 	struct BookKeeper *bk = BookKeeper_init();
 	alloc_pages(bk, N_blob + 4);
 	char *ans = (char *)malloc(N_blob + 4);
 	memset(ans, -1, N_blob + 4);
+
 	EXPECT_INT(cmp_bk_array(bk, ans, N_blob + 4), 0);
+	free_all_pages(bk);
 	free(ans);
 }
 
@@ -177,7 +181,7 @@ void write_one_page_wp_test() {
 	EXPECT_INT(wp.cur_page, 1);
 	EXPECT_INT(cmp_bk_array(bk, ans, 2), 0);
 
-	BookKeeper_free(bk);
+	free_all_pages(bk);
 	free(ans);
 }
 
@@ -201,7 +205,7 @@ void write_one_page_wp_test2() {
 	EXPECT_INT(wp.cur_page, 1);
 	EXPECT_INT(cmp_bk_array(bk, ans, N_blob + 2), 0);
 
-	BookKeeper_free(bk);
+	free_all_pages(bk);
 	free(ans);
 }
 
@@ -224,7 +228,7 @@ void write_pages_wp_test() {
 	EXPECT_INT(wp.cur_page, 0);
 	EXPECT_INT(cmp_bk_array(bk, ans, N_blob + 2), 0);
 
-	BookKeeper_free(bk);
+	free_all_pages(bk);
 	free(ans);
 }
 
@@ -239,11 +243,11 @@ void alloc_pages_write_test() {
 	memset(ans + 12, 6, 20);
 
 	EXPECT_INT(bk->allocated_size, 12 + 20);
-	EXPECT_INT(bk->allocated_size_real, (int)ROUND_UP(32, N_blob));
+	EXPECT_INT(bk->allocated_size_real, (unsigned)ROUND_UP(32, N_blob));
 	EXPECT_INT(cmp_bk_array(bk, ans, 12 + 20), 0);
 
-	MList_free(bk->head);
-	BookKeeper_free(bk);
+	free_all_pages(bk);
+	free(ans);
 }
 
 void write_pages_test() {
@@ -253,16 +257,54 @@ void write_pages_test() {
 	write_pages(bk, N_blob, 1);
 	write_pages(bk, N_blob, 2);
 	write_pages(bk, N_blob, 3); // overwrite
-	
+
 	char *ans = (char*)malloc(N_blob * 2);
 	memset(ans, 3, N_blob);
 	memset(ans + N_blob, 2, N_blob);
 
 	EXPECT_INT(cmp_bk_array(bk, ans, N_blob * 2), 0);
 
-	MList_free(bk->head);
-	BookKeeper_free(bk);
+	free_all_pages(bk);
+	free(ans);
 }
+
+void free_pages_test(){
+	printf("Test: %s\n", __func__);
+	struct BookKeeper *bk = BookKeeper_init();
+	alloc_pages_write(bk, 2, 1);
+	free_pages(bk, 2);
+	EXPECT_INT(bk->allocated_size, 0);
+	EXPECT_INT(bk->allocated_size_real, 0);
+	EXPECT_PTR(bk->head, NULL);
+	EXPECT_PTR(bk->tail, NULL);
+	free_all_pages(bk);
+}
+
+void free_pages_test2() {
+	printf("Test: %s\n", __func__);
+	struct BookKeeper *bk = BookKeeper_init();
+	alloc_pages_write(bk, N_blob + 2, 1);
+	free_pages(bk, 1);
+	EXPECT_INT(bk->allocated_size, N_blob + 2 - 1);
+	EXPECT_INT(bk->allocated_size_real, 2 * N_blob);
+	EXPECT_PTR(bk->head->next, bk->tail);
+	free_all_pages(bk);
+}
+
+void free_pages_test3() {
+	printf("Test: %s\n", __func__);
+	struct BookKeeper *bk = BookKeeper_init();
+	alloc_pages_write(bk, N_blob, 1);
+	struct MList *m_tail = bk->tail;
+	alloc_pages_write(bk, N_blob + 2, 1);
+	free_pages(bk, N_blob + 2);
+	EXPECT_INT(bk->allocated_size, N_blob);
+	EXPECT_INT(bk->allocated_size_real, N_blob);
+	EXPECT_PTR(bk->head, m_tail);
+	EXPECT_PTR(bk->tail, m_tail);
+	free_all_pages(bk);
+}
+
 
 
 int main() {
@@ -277,5 +319,8 @@ int main() {
 	write_pages_wp_test();
 	alloc_pages_write_test();
 	write_pages_test();
+	free_pages_test();
+	free_pages_test2();
+	free_pages_test3();
 }
 

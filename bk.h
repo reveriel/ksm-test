@@ -5,10 +5,10 @@ struct BookKeeper;
 
 struct BookKeeper *BookKeeper_init();
 
-extern unsigned N_blob;
+extern unsigned const N_blob;
 
 
-/* allocate 'num' of pages. pad with 'content' 
+/* allocate 'num' of pages. pad with 'content'
  * the real alloc is done in multiple of 'N_blob'('N')
  * for example, if 'num' = N + 1, we will allocate  2 * 'N'
  * number of ten-pages.
@@ -46,7 +46,7 @@ inline unsigned nr_allocated_pages_real(struct BookKeeper *bk) {
  */
 void write_pages(struct BookKeeper *bk, unsigned num, char content);
 
-/* write 'num' pages, 
+/* write 'num' pages,
  * random choosen
  * pad with char 'content'
  */
