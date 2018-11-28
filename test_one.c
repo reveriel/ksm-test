@@ -2,9 +2,9 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
-/**
- * allocate many zero pages. with malloc.
+/* get, free, write pages
  */
 
 #include "bk.h"
@@ -25,12 +25,11 @@ void simu1()
 	struct BookKeeper *bk;
 	bk = BookKeeper_init();
 
-	alloc_pages_write(bk, 50, 1);
-
-	free_pages(bk, 50);
-	alloc_pages_write(bk, 50, 1);
+	alloc_pages_write(bk, 100, 1);
 
 	sleep(10);
+	/* free_pages(bk, 100); */
+
 	free_all_pages(bk);
 }
 
@@ -43,10 +42,11 @@ int main(int argc, char *argv[])
 			if (a[0] == '-' && a[1] == 'r') {
 				op_random = true;
 			} else if (a[0] == '-' && a[1] == 'h') {
-
 				print_help_message(argv[0]);
+				exit(0);
 			} else  {
 				print_help_message(argv[0]);
+				exit(0);
 			}
 		}
 	}

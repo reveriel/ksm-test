@@ -57,7 +57,7 @@ void MList_print(struct MList *ml) {
 	printf(" [");
 	char *p = ml->p;
 	for (unsigned i = 0; i < N_blob; i++) {
-		printf("%4x ", *p);
+		printf("%4d ", (int)*p);
 		p += PAGESIZE;
 	}
 	printf(" ]\n");
@@ -141,6 +141,7 @@ void bk_add_ml_test2() {
 	BookKeeper_free(bk);
 	MList_free(ml1);
 	MList_free(ml2);
+	MList_free(ml3);
 }
 
 void alloc_pages_test() {
@@ -305,6 +306,17 @@ void free_pages_test3() {
 	free_all_pages(bk);
 }
 
+void free_pages_test4() {
+	printf("Test: %s\n", __func__);
+	struct BookKeeper *bk = BookKeeper_init();
+	alloc_pages_write(bk, 100, 1);
+	free_pages(bk, 32);
+	free_pages(bk, 100-32-1);
+	free_pages(bk, 1);
+	EXPECT_PTR(bk->head, NULL);
+	EXPECT_PTR(bk->tail, NULL);
+	free_all_pages(bk);
+}
 
 
 int main() {
@@ -322,5 +334,6 @@ int main() {
 	free_pages_test();
 	free_pages_test2();
 	free_pages_test3();
+	free_pages_test4();
 }
 
