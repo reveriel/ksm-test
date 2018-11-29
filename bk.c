@@ -165,6 +165,26 @@ static int write_one_page_wp(struct BookKeeper *bk, struct WriteP *wp,
 	return 1;
 }
 
+
+// write one page at wp, write random data
+static int write_one_page_wp_random(struct BookKeeper *bk, struct WriteP *wp)
+{
+	if (wp->cur_page >= N_blob)
+		return 0;
+	struct MList *ml = wp->cur_ml;
+	char *write_p = ml->p;
+
+	write_p += wp->cur_page * PAGESIZE;
+
+	int *write_int_p = (int *)write_p;
+	for (int i = 0; i < PAGESIZE / 4; i++)
+		write_int_p[i] = rand();
+	
+	wrap_wp(bk, wp);
+	return 1;
+}
+
+
 // if wp->cur_ml is null, init to bk->head;
 static void write_pages_wp(struct BookKeeper *bk, struct WriteP *wp, unsigned num,
 		char content)
@@ -178,6 +198,26 @@ static void write_pages_wp(struct BookKeeper *bk, struct WriteP *wp, unsigned nu
 
 	for (unsigned i = 0; i < num; i++) {
 		int n = write_one_page_wp(bk, wp, content);
+		if (n == 0) {
+			printf("write page error\n");
+			return;
+		}
+	}
+}
+
+// if wp->cur_ml is null, init to bk->head;
+static void write_pages_wp_random(struct BookKeeper *bk, struct WriteP *wp,
+		unsigned num)
+{
+	if (!wp)
+		return;
+	if (wp->cur_ml == NULL) {
+		wp->cur_ml = bk->head;
+		wp->cur_page = 0;
+	}
+
+	for (unsigned i = 0; i < num; i++) {
+		int n = write_one_page_wp_random(bk, wp);
 		if (n == 0) {
 			printf("write page error\n");
 			return;
@@ -242,6 +282,19 @@ void write_pages(struct BookKeeper *bk, unsigned num, char content)
 	write_pages_wp(bk, &bk->wp, num, content);
 }
 
+
+// alloc pages, like 'alloc_pages_write()', but write random data
+void alloc_pages_write_random(struct BookKeeper *bk, unsigned num)
+{
+	struct WriteP wp;
+	wp.cur_ml = bk->tail; // might be null
+	wp.cur_page = bk->allocated_size % N_blob;
+
+	alloc_pages(bk, num);
+	write_pages_wp_random(bk, &wp, num);
+}
+
+// not implemented yet
 void write_random_pages(struct BookKeeper *bk, unsigned num, char content)
 {
 	bk = bk;
@@ -249,10 +302,10 @@ void write_random_pages(struct BookKeeper *bk, unsigned num, char content)
 	content = content;
 }
 
+// similar to write_pages, but write random data
 void write_pages_random(struct BookKeeper *bk, unsigned num)
 {
-	bk = bk;
-	num = num;
+	write_pages_wp_random(bk, &bk->wp, num);
 }
 
 

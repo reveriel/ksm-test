@@ -1,12 +1,13 @@
 #ifndef _BK_H
 #define _BK_H
-struct BookKeeper;
 
-
-struct BookKeeper *BookKeeper_init();
+#define ROUND_UP(num, mod) ((((unsigned long long)num) + (mod) - 1) / (mod) * (mod))
 
 extern unsigned const N_blob;
 
+struct BookKeeper;
+
+struct BookKeeper *BookKeeper_init();
 
 /* allocate 'num' of pages. pad with 'content'
  * the real alloc is done in multiple of 'N_blob'('N')
@@ -20,20 +21,26 @@ extern unsigned const N_blob;
  * */
 int alloc_pages_write(struct BookKeeper *bk, unsigned num, char content);
 
+/*
+ * alloc pages, like 'alloc_pages_write()', but don't write 
+ */
+int alloc_pages(struct BookKeeper *bk, unsigned num);
+
+/**
+ * alloc pages, like 'alloc_pages_write()', but write random data
+ */
+void alloc_pages_write_random(struct BookKeeper *bk, unsigned num);
 
 /* return the total number of allocated pages.
  * its is the sum of 'num' of all alloc_page() invocation
  */
-unsigned nr_allocated_pages(struct BookKeeper *bk);
-
-
-#define ROUND_UP(num, mod) ((((unsigned long long)num) + (mod) - 1) / (mod) * (mod))
+unsigned num_allocated_pages(struct BookKeeper *bk);
 
 /*
  * return the real number of pages allocated
  */
-inline unsigned nr_allocated_pages_real(struct BookKeeper *bk) {
-	return ROUND_UP(nr_allocated_pages(bk), N_blob);
+inline unsigned num_allocated_pages_real(struct BookKeeper *bk) {
+	return ROUND_UP(num_allocated_pages(bk), N_blob);
 }
 
 /*
@@ -70,7 +77,7 @@ void read_pages(struct BookKeeper *bk, unsigned num);
 /*
  * simmilar to alloc_pages
  * free is done in multiple of 'N_blob'('N'),
- * if the the 'nr_allocated_pages_real()' is N.
+ * if the the 'num_allocated_pages_real()' is N.
  * free 'num' < N, won't actually free any memory.
  */
 void free_pages(struct BookKeeper *bk, unsigned num);
