@@ -102,7 +102,7 @@ void BookKeeper_prints(struct BookKeeper *bk) {
 		printf(" [");
 		char *p = ml->p;
 		while (size--) {
-			printf("%4x ", *p);
+			printf("%4d ", (int)*p);
 			p += PAGESIZE;
 		}
 		printf(" ]\n");
@@ -318,6 +318,15 @@ void free_pages_test4() {
 	free_all_pages(bk);
 }
 
+void alloc_pages_write_random_test() {
+	printf("Test: %s\n", __func__);
+	struct BookKeeper *bk = BookKeeper_init();
+	alloc_pages_write_random(bk, 10);
+	BookKeeper_prints(bk);
+	free_all_pages(bk);
+}
+
+
 
 int main() {
 	MList_init_test();
@@ -335,5 +344,6 @@ int main() {
 	free_pages_test2();
 	free_pages_test3();
 	free_pages_test4();
+	alloc_pages_write_random_test();
 }
 

@@ -41,7 +41,7 @@ void simu1()
 void simu2()
 {
 	struct BookKeeper *bk = BookKeeper_init();
-	alloc_pages_write(bk, 10000, 1);
+	alloc_pages_write_random(bk, 10000);
 	sleep(30);
 	free_all_pages(bk);
 }
