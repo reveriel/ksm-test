@@ -177,7 +177,10 @@ static int write_one_page_wp_random(struct BookKeeper *bk, struct WriteP *wp)
 	write_p += wp->cur_page * PAGESIZE;
 
 	int *write_int_p = (int *)write_p;
-	for (int i = 0; i < PAGESIZE / 4; i++)
+	// there a 1024 ints, We don't need to write all
+	// if write all,  pages' value space is 2^32768
+	// a subsapce is enough to make pages have different contents
+	for (int i = 0; i < PAGESIZE / 4; i += 16)
 		write_int_p[i] = rand();
 	
 	wrap_wp(bk, wp);

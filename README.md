@@ -47,3 +47,16 @@ Then..
 
 3. can this makefile still be used standalone?
 
+
+## note
+
+malloc allocate pages. new pages will get to new list.
+when free.  what happens ? 
+pages are not returned to the OS. but keeped in malloc's buffer.
+No! it is returned to OS and freed. since pages are deleted from new list.
+
+fuck, How to test the function kernel!
+
+
+
+

@@ -22,6 +22,7 @@ void print_help_message(char *progname)
 	printf("      2 : get 10000, sleep 30;\n");
 	printf("      3 : get 100, 1; sleep 10; fork{child: write 100, 2; sleep 10; parent: wait}; free;\n");
 	printf("      4 : get 100, 1; sleep 10; fork 39 child;\n");
+	printf("      5 : loop;\n");
 }
 
 // I want to write a script language. to descripbe the simulation...
@@ -91,6 +92,32 @@ void simu4() {
 	free_all_pages(bk);
 }
 
+void simu5(){
+	/* struct BookKeeper *bk = BookKeeper_init(); */
+
+	/* alloc_pages_write(bk, 100, 1); */
+	/* alloc_pages_write(bk, 100, 2); */
+	/* sleep(10); */
+	/* /1* free_pages(bk, 1000); *1/ */
+	/* free_all_pages(bk); */
+	/* sleep(10); */
+
+	struct BookKeeper *bk = BookKeeper_init();
+	/* printf("alloc 100, 1"); */
+	while (1) {
+
+		printf("alloc 3000");
+		alloc_pages_write(bk, 3000, 1);
+		sleep(5);
+		printf("free 3000");
+		free_pages(bk, 3000);
+		sleep(5);
+	}
+
+	free_all_pages(bk);
+}
+
+
 
 int main(int argc, char *argv[])
 {
@@ -104,6 +131,7 @@ int main(int argc, char *argv[])
 	char *a = argv[1];
 	if (a[0] == '-' && a[1] == 's') {
 		simu = atoi(argv[2]);
+		printf("simu = %d\n", simu);
 	}
 
 	switch (simu) {
@@ -114,6 +142,8 @@ int main(int argc, char *argv[])
 		case 3: simu3();
 			break;
 		case 4: simu4();
+			break;
+		case 5: simu5();
 			break;
 		default:
 			print_help_message(argv[0]);
